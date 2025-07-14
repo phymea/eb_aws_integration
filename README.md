@@ -5,20 +5,22 @@ This project provides a sample framework for running a containerized image analy
 ## Project Structure
 
 ```
-aws_integration/
-  README.md                # This file
-  docker_image/            # Docker image source for the analysis job
-    Dockerfile
-    requirements.txt
-    main.py                # Main entrypoint for the container
-  orchestration/           # Orchestration scripts and templates
-    config.json            # Main configuration file 
-    config.json.example    # Configuration file example
-    run_ec2_instance.py    # Main script to launch and control EC2 jobs
-    setup_instance_role.py # Script to create/update the EC2 instance IAM role
-    setup_automation_role.py # Script to create/update the automation IAM role
-    user_data_template.sh.j2 # Jinja2 template for EC2 user data
-    util_scripts/          # Helper scripts (CloudWatch, ECR, etc.)
+README.md                # This file
+LICENSE                  # License file
+.gitignore               # Git ignore rules
+orchestration/           # Orchestration scripts and templates
+  config.json            # Main configuration file 
+  config.json.example    # Configuration file example
+  run_ec2_instance.py    # Main script to launch and control EC2 jobs
+  setup_instance_role.py # Script to create/update the EC2 instance IAM role
+  setup_automation_role.py # Script to create/update the automation IAM role
+  user_data_template.sh.j2 # Jinja2 template for EC2 user data
+  requirements.txt       # Python requirements for orchestration scripts
+  util_scripts/          # Helper scripts (CloudWatch, ECR, etc.)
+docker_image/            # Docker image source for the analysis job
+  Dockerfile
+  requirements.txt
+  main.py                # Main entrypoint for the container
 ```
 
 ## Setup Guide
@@ -27,7 +29,7 @@ aws_integration/
 
 1. **Build your Docker image:**
    ```
-   cd aws_integration/docker_image
+   cd docker_image
    docker build -t <your-ecr-repo>:latest .
    ```
 2. **Authenticate Docker to ECR:**
@@ -58,7 +60,7 @@ aws_integration/
 
 ### 3. Setup IAM Roles Using the Provided Scripts
 
-From the `aws_integration/orchestration` directory:
+From the `orchestration` directory:
 
 ```
 # Create the instance role (edit --role-name as needed)
@@ -74,7 +76,7 @@ python setup_automation_role.py --role-name EarboxAutomationRole --instance-prof
 
 ### 4. Run the EC2 Instance
 
-From the `aws_integration/orchestration` directory:
+From the `orchestration` directory:
 
 ```
 python run_ec2_instance.py
