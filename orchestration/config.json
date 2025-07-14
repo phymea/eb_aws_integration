@@ -1,0 +1,30 @@
+{
+  "test_instance": {
+    "ami_id": "ami-00c8ac9147e19828e",
+    "instance_type": "t3.micro"
+  },
+  "production_instance": {
+    "ami_id": "ami-04020d21cabbb9d43",
+    "instance_type": "g4dn.xlarge"
+  },
+  "docker": {
+    "image": "<account_id>.dkr.ecr.eu-north-1.amazonaws.com/<repository_name>/<image_name>:latest",
+    "ecr_auth": true
+  },
+  "environment": {
+    "region": "eu-north-1",
+    "input_bucket": "<inputbucket>",
+    "output_bucket": "<outputbucket>",
+    "input_prefix": "<inputprefix>"
+  },
+  "iam": {
+    "role_name": "EarboxEC2InstanceRole",
+    "automation_role_arn": "arn:aws:iam::<account_id>:role/EarboxAutomationRole",
+    "base_profile": "default"
+  },
+  "cloudwatch": {
+    "log_group": "/aws/ec2/earbox-processing",
+    "log_stream_prefix": "earbox-job-",
+    "retention_days": 7
+  }
+}

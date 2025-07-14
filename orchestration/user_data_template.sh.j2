@@ -1,0 +1,103 @@
+#!/bin/bash
+set -e
+
+# Set environment variables
+export AWS_REGION={{ AWS_REGION }}
+export INPUT_BUCKET={{ INPUT_BUCKET }}
+export OUTPUT_BUCKET={{ OUTPUT_BUCKET }}
+export INPUT_PREFIX={{ INPUT_PREFIX }}
+export OUTPUT_KEY={{ OUTPUT_KEY }}
+export LOG_GROUP={{ LOG_GROUP }}
+export LOG_STREAM={{ LOG_STREAM }}
+
+# CloudWatch logging function
+SEQUENCE_TOKEN=""
+log_to_cloudwatch() {
+  local MESSAGE="$1"
+  local TIMESTAMP=$(date +%s%3N)
+  local LOG_EVENT="[{\"timestamp\":$TIMESTAMP,\"message\":\"$MESSAGE\"}]"
+  local ARGS=(--log-group-name "$LOG_GROUP" --log-stream-name "$LOG_STREAM" --log-events "$LOG_EVENT" --region "$AWS_REGION")
+  if [ -n "$SEQUENCE_TOKEN" ]; then
+    ARGS+=(--sequence-token "$SEQUENCE_TOKEN")
+  fi
+  local OUTPUT
+  OUTPUT=$(aws logs put-log-events "${ARGS[@]}" 2>&1)
+  if echo "$OUTPUT" | grep -q 'InvalidSequenceTokenException'; then
+    # Fetch the correct sequence token and retry
+    SEQUENCE_TOKEN=$(aws logs describe-log-streams --log-group-name "$LOG_GROUP" --log-stream-name "$LOG_STREAM" --region "$AWS_REGION" --query 'logStreams[0].uploadSequenceToken' --output text)
+    OUTPUT=$(aws logs put-log-events --log-group-name "$LOG_GROUP" --log-stream-name "$LOG_STREAM" --log-events "$LOG_EVENT" --region "$AWS_REGION" --sequence-token "$SEQUENCE_TOKEN" 2>&1)
+  fi
+  # Extract nextSequenceToken for next call
+  SEQUENCE_TOKEN=$(echo "$OUTPUT" | grep -o '"nextSequenceToken": *"[^"]*"' | sed 's/.*: *"\([^"]*\)"/\1/')
+}
+
+# Ensure log group and log stream exist
+aws logs create-log-group --log-group-name "$LOG_GROUP" --region "$AWS_REGION" 2>/dev/null || true
+aws logs create-log-stream --log-group-name "$LOG_GROUP" --log-stream-name "$LOG_STREAM" --region "$AWS_REGION" 2>/dev/null || true
+
+log_to_cloudwatch "[BOOT] User data script started on $(hostname)"
+
+# Install and start Docker (compatible with both AL2 and AL2023)
+log_to_cloudwatch "[BOOT] Installing Docker..."
+yum update -y
+
+# Check if amazon-linux-extras is available (AL2) or use dnf (AL2023)
+if command -v amazon-linux-extras &> /dev/null; then
+    log_to_cloudwatch "[BOOT] Using Amazon Linux 2 for Docker install"
+    amazon-linux-extras install docker -y
+    systemctl start docker
+    systemctl enable docker
+    usermod -a -G docker ec2-user
+elif command -v dnf &> /dev/null; then
+    log_to_cloudwatch "[BOOT] Using Amazon Linux 2023 for Docker install"
+    dnf install -y docker
+    systemctl start docker
+    systemctl enable docker
+    usermod -a -G docker ec2-user
+else
+    log_to_cloudwatch "[BOOT] Using yum for Docker install"
+    yum install -y docker
+    systemctl start docker
+    systemctl enable docker
+    usermod -a -G docker ec2-user
+fi
+
+# Wait a moment for Docker to be ready
+sleep 5
+log_to_cloudwatch "[BOOT] Docker installed and started."
+
+# Authenticate to ECR if needed
+{% if ECR_AUTH %}
+log_to_cloudwatch "[BOOT] Authenticating to ECR..."
+echo "Authenticating to ECR..."
+aws ecr get-login-password --region {{ AWS_REGION }} | docker login --username AWS --password-stdin $(echo {{ DOCKER_IMAGE }} | cut -d'/' -f1)
+log_to_cloudwatch "[BOOT] ECR authentication complete."
+{% endif %}
+
+# Pull and run Docker container
+log_to_cloudwatch "[BOOT] Pulling Docker image: {{ DOCKER_IMAGE }}"
+echo "Pulling Docker image: {{ DOCKER_IMAGE }}"
+docker pull {{ DOCKER_IMAGE }}
+log_to_cloudwatch "[BOOT] Docker image pulled: {{ DOCKER_IMAGE }}"
+
+log_to_cloudwatch "[BOOT] Running Docker container."
+docker run --rm \
+    -e AWS_REGION \
+    -e INPUT_BUCKET \
+    -e OUTPUT_BUCKET \
+    -e INPUT_PREFIX \
+    -e OUTPUT_KEY \
+    -e LOG_GROUP \
+    -e LOG_STREAM \
+    {{ DOCKER_IMAGE }} \
+    --input-bucket $INPUT_BUCKET \
+    --output-bucket $OUTPUT_BUCKET \
+    --input-prefix $INPUT_PREFIX \
+    --output-key $OUTPUT_KEY \
+    --log-group $LOG_GROUP \
+    --log-stream $LOG_STREAM 
+log_to_cloudwatch "[BOOT] Docker container run complete."
+
+# Shutdown the instance after job completion
+log_to_cloudwatch "[BOOT] Shutting down instance..."
+shutdown -h now 

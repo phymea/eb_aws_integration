@@ -1,0 +1,6 @@
+opencv-python
+scikit-learn
+scikit-image
+tensorflow
+numpy
+boto3
