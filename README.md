@@ -9,7 +9,7 @@ README.md                # This file
 LICENSE                  # License file
 .gitignore               # Git ignore rules
 orchestration/           # Orchestration scripts and templates
-  config.json            # Main configuration file 
+  config.json            # Main configuration file (Edit from config.json.example) 
   config.json.example    # Configuration file example
   run_ec2_instance.py    # Main script to launch and control EC2 jobs
   setup_instance_role.py # Script to create/update the EC2 instance IAM role
