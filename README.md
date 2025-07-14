@@ -72,8 +72,6 @@ python setup_instance_role.py --role-name EarboxEC2InstanceRole --update-config
 python setup_automation_role.py --role-name EarboxAutomationRole --instance-profile-role-arn <INSTANCE_ROLE_ARN> --update-config
 ```
 
-- Attach the automation role to your AWS CLI profile or automation user as needed.
-
 ### 4. Run the EC2 Instance
 
 From the `orchestration` directory:
