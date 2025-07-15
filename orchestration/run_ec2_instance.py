@@ -20,7 +20,7 @@ def load_config(config_file):
         return json.load(f)
 
 
-def render_user_data_jinja(config, input_bucket=None, output_bucket=None, log_stream=None, output_key=None):
+def render_user_data_jinja(config, input_bucket=None, output_bucket=None, log_stream=None, output_key=None, input_prefix=None):
     """Render user data from Jinja2 template file."""
     template_path = os.path.join(os.path.dirname(__file__), 'user_data_template.sh.j2')
     with open(template_path) as f:
@@ -30,7 +30,7 @@ def render_user_data_jinja(config, input_bucket=None, output_bucket=None, log_st
         'AWS_REGION': config['environment']['region'],
         'INPUT_BUCKET': input_bucket or config['environment']['input_bucket'],
         'OUTPUT_BUCKET': output_bucket or config['environment']['output_bucket'],
-        'INPUT_PREFIX': config['environment']['input_prefix'],
+        'INPUT_PREFIX': input_prefix or config['environment']['input_prefix'],
         'OUTPUT_KEY': output_key,
         'LOG_GROUP': config['cloudwatch']['log_group'],
         'LOG_STREAM': log_stream,
@@ -57,9 +57,9 @@ def generate_output_key(config):
     return output_key
 
 
-def generate_user_data(config, input_bucket=None, output_bucket=None, log_stream=None, output_key=None):
+def generate_user_data(config, input_bucket=None, output_bucket=None, log_stream=None, output_key=None, input_prefix=None):
     """Generate user data script to run Docker container."""
-    return render_user_data_jinja(config, input_bucket, output_bucket, log_stream, output_key)
+    return render_user_data_jinja(config, input_bucket, output_bucket, log_stream, output_key, input_prefix)
 
 
 def assume_role(role_arn, session_name, base_profile=None, region=None):
@@ -81,6 +81,8 @@ def assume_role(role_arn, session_name, base_profile=None, region=None):
 
 def get_existing_instance(instance_id, region, session):
     """Get details of an existing running instance."""
+    if session is None:
+        raise ValueError("AWS session is not initialized.")
     ec2: Any = session.resource('ec2')
     
     try:
@@ -103,8 +105,10 @@ def get_existing_instance(instance_id, region, session):
         return None, None
 
 
-def launch_instance(config, mode, input_bucket=None, output_bucket=None, session=None, log_stream=None, output_key=None):
+def launch_instance(config, mode, input_bucket=None, output_bucket=None, session=None, log_stream=None, output_key=None, input_prefix=None):
     """Launch EC2 instance and return instance details."""  
+    if session is None:
+        raise ValueError("AWS session is not initialized.")
     mode_config = config[f'{mode}_instance']
     region = config['environment']['region']
     print(f"[INFO] Launching {mode} instance...")
@@ -115,7 +119,7 @@ def launch_instance(config, mode, input_bucket=None, output_bucket=None, session
     ec2: Any = session.resource('ec2')
     
     # Generate user data
-    user_data = generate_user_data(config, input_bucket=input_bucket, output_bucket=output_bucket, log_stream=log_stream, output_key=output_key)
+    user_data = generate_user_data(config, input_bucket=input_bucket, output_bucket=output_bucket, log_stream=log_stream, output_key=output_key, input_prefix=input_prefix)
     
     # Launch instance
     instance_params = {
@@ -144,6 +148,8 @@ def launch_instance(config, mode, input_bucket=None, output_bucket=None, session
 
 def run_userdata_on_instance(config, instance_id, input_bucket=None, output_bucket=None, session=None, log_stream=None, output_key=None, input_prefix=None):
     """Re-run user data script on an existing instance using SSM."""
+    if session is None:
+        raise ValueError("AWS session is not initialized.")
     region = config['environment']['region']
     instance_id, public_dns = get_existing_instance(instance_id, region, session)
     if not instance_id:
@@ -152,7 +158,7 @@ def run_userdata_on_instance(config, instance_id, input_bucket=None, output_buck
     print(f"[INFO] Re-running user data on existing instance {instance_id}")
     
     # Generate user data script
-    user_data = generate_user_data(config, input_bucket=input_bucket, output_bucket=output_bucket, log_stream=log_stream, output_key=output_key)
+    user_data = generate_user_data(config, input_bucket=input_bucket, output_bucket=output_bucket, log_stream=log_stream, output_key=output_key, input_prefix=input_prefix)
     
     # Remove the shebang and make it executable
     user_data_script = user_data.replace('#!/bin/bash\n', '')
@@ -204,6 +210,8 @@ def run_userdata_on_instance(config, instance_id, input_bucket=None, output_buck
 
 def run_job_on_instance(config, instance_id, input_bucket=None, output_bucket=None, session=None, log_stream=None, output_key=None, input_prefix=None):
     """Run the batch processing job on an existing instance using SSM."""
+    if session is None:
+        raise ValueError("AWS session is not initialized.")
     region = config['environment']['region']
     instance_id, public_dns = get_existing_instance(instance_id, region, session)
     if not instance_id:
