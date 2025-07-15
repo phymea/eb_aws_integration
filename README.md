@@ -2,6 +2,14 @@
 
 This project provides a sample framework for running a containerized image analysis pipeline on AWS EC2 for Earbox session images, with instance lifecycle control, logging, and automation. It demonstrates how to orchestrate jobs using EC2, Docker, S3, and CloudWatch, with all infrastructure and job parameters externalized for easy configuration and reproducibility.
 
+**Basic Usage:**
+
+This program expects:
+- An **input S3 bucket** and an **input_prefix** (S3 prefix) containing Earbox session images to be processed.
+- An **output S3 bucket** where the program will write a `.json` file containing some arbitrary information for test purposes.
+
+You must configure these values in your `config.json` file before running the pipeline.
+
 ## Project Structure
 
 ```
