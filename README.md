@@ -1,6 +1,7 @@
 # AWS Integration Sample for Earbox analysis: Image Analysis Pipeline with Instance Control
 
 This project provides a sample framework for running a containerized image analysis pipeline on AWS EC2 for Earbox session images, with instance lifecycle control, logging, and automation. It demonstrates how to orchestrate jobs using EC2, Docker, S3, and CloudWatch, with all infrastructure and job parameters externalized for easy configuration and reproducibility.
+Although the current implementation targets image analysis, this project serves as a template for EC2 + Docker orchestration and can be quickly modified to support different processing pipelines.
 
 **Basic Usage:**
 
